@@ -1,0 +1,57 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta http-equiv="X-UA-Compatible" content="IE=edge">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Document</title>
+  <style>
+    .box {
+      height: 100px;
+      background-color: pink;
+    }
+  </style>
+</head>
+<body>
+  <div class="box"></div>
+  <button class="btn1">calc</button>
+  <button class="btn2">changeColor</button>
+
+  <script>
+    var box = document.querySelector('.box')
+    var btn1 = document.querySelector('.btn1')
+    var btn2 = document.querySelector('.btn2')
+    console.dir(box)
+    var num = 99999
+
+    function calc (deadline) {
+      // deadline.timeRemaining() 获取浏览器空余时间 ms
+      while (num > 0 && deadline.timeRemaining() > 1) {
+        var temp = Math.random() > 1 ? Math.random() : Math.random() + '1'
+        console.log(num)
+        num--
+      }
+      requestIdleCallback(calc)
+    }
+
+    var num1 = 99999
+    function calc1 () {
+      while (num1 > 0) {
+        var temp = Math.random() > 1 ? Math.random() : Math.random() + '1'
+        console.log('------------', num1)
+        num1--
+      }
+      requestIdleCallback(calc)
+    }
+    
+    btn1.onclick = function () {
+      requestIdleCallback(calc)
+    }
+    btn2.onclick = function () {
+      console.log('++')
+      box.style.background = 'green'
+      calc1()
+    }
+  </script>
+</body>
+</html>
