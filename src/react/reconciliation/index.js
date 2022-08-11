@@ -59,7 +59,9 @@ const executeTask = fiber => {
   // 如果存在同级 返回同级 构建同级的子级; 如果同级不存在 返回到父级 看父级是否有同级
   let currentExecutelyFiber = fiber
   while (currentExecutelyFiber.parent) {
-    console.log('------------', currentExecutelyFiber)
+    currentExecutelyFiber.parent.effects = currentExecutelyFiber.parent.effects.concat(
+      currentExecutelyFiber.effects.concat([currentExecutelyFiber])
+    )
     if (currentExecutelyFiber.sibling) {
       return currentExecutelyFiber.sibling
     }
