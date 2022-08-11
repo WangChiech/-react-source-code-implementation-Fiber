@@ -7,3 +7,5 @@ export { default as createStateNode } from './CreateStateNode'
 export { default as getTag } from './GetTag'
 
 export { createReactInstance } from './CreateReactInstance'
+
+export { default as getRoot } from './GetRoot'

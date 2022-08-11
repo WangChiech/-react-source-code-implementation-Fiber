@@ -1,4 +1,4 @@
-import { createTaskQueue, arrified, createStateNode, getTag } from '../Misc'
+import { createTaskQueue, arrified, createStateNode, getTag, getRoot } from '../Misc'
 import { updateNodeElement } from '../DOM'
 
 const taskQueue = createTaskQueue()
@@ -7,6 +7,9 @@ let pendingCommit = null
 
 const commitAllWork = fiber => {
   fiber.effects.forEach(item => {
+    if (item.tag === 'class_component') {
+      item.stateNode.__fiber = item
+    }
     if (item.effectTag === 'placement') {
       let parentFiber = item.parent
       while (['class_component', 'function_component'].includes(parentFiber.tag)) {
@@ -37,6 +40,19 @@ const commitAllWork = fiber => {
 const getFirstTask =() => {
   // 从任务队列中获取任务
   const task = taskQueue.pop()
+
+  if (task.from === 'class_component') {
+    const rootFiber = getRoot(task.instance.__fiber)
+    task.instance.__fiber.partialState = task.partialState
+    return {
+      props: rootFiber.props,
+      stateNode: rootFiber.stateNode,
+      tag: 'host_root',
+      effects: [],
+      child: null,
+      alternate: rootFiber
+    }
+  }
   //返回最外层节点的 fiber 对象
   return {
     props: task.props, // 节点属性
@@ -120,6 +136,12 @@ const reconcileChildren = (fiber, children) => {
 const executeTask = fiber => {
   // 构建子级 fiber 对象
   if (fiber.tag === 'class_component') {
+    if (fiber.stateNode.__fiber && fiber.stateNode.__fiber.partialState) {
+      fiber.stateNode.state = {
+        ...fiber.stateNode.state,
+        ...fiber.stateNode.__fiber.partialState
+      }
+    }
     reconcileChildren(fiber, fiber.stateNode.render())
   } else if (fiber.tag === 'function_component') {
     reconcileChildren(fiber, fiber.stateNode(fiber.props))
@@ -175,5 +197,14 @@ export const render =  (element, dom) => {
     props: { children: element }
   })
   
+  requestIdleCallback(performTask)
+}
+
+export const scheduleUpdate = (instance, partialState) => {
+  taskQueue.push({
+    from: 'class_component',
+    instance,
+    partialState
+  })
   requestIdleCallback(performTask)
 }
