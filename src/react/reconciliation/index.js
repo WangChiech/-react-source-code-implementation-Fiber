@@ -2,6 +2,21 @@ import { createTaskQueue, arrified, createStateNode, getTag } from '../Misc'
 
 const taskQueue = createTaskQueue()
 let subTask = null
+let pendingCommit = null
+
+const commitAllWork = fiber => {
+  fiber.effects.forEach(item => {
+    if (item.effectTag === 'placement') {
+      let parentFiber = item.parent
+      while (['class_component', 'function_component'].includes(parentFiber.tag)) {
+        parentFiber = parentFiber.parent
+      }
+      if (item.tag === 'host_component') {
+        parentFiber.stateNode.appendChild(item.stateNode)
+      }
+    }
+  })
+}
 
 const getFirstTask =() => {
   // 从任务队列中获取任务
@@ -33,10 +48,9 @@ const reconcileChildren = (fiber, children) => {
       props: element.props,
       tag: getTag(element), // host_component 普通节点 || 根节点 host_root
       effects: [],
-      effectTag: "palcement",
+      effectTag: "placement",
       parent: fiber
     }
-
     newFiber.stateNode = createStateNode(newFiber)
 
     if (index === 0) {
@@ -51,7 +65,13 @@ const reconcileChildren = (fiber, children) => {
 
 const executeTask = fiber => {
   // 构建子级 fiber 对象
-  reconcileChildren(fiber, fiber.props.children)
+  if (fiber.tag === 'class_component') {
+    reconcileChildren(fiber, fiber.stateNode.render())
+  } else if (fiber.tag === 'function_component') {
+    reconcileChildren(fiber, fiber.stateNode(fiber.props))
+  } else {
+    reconcileChildren(fiber, fiber.props.children)
+  }
   if (fiber.child) {
     return fiber.child
   }
@@ -67,6 +87,7 @@ const executeTask = fiber => {
     }
     currentExecutelyFiber = currentExecutelyFiber.parent
   }
+  pendingCommit = currentExecutelyFiber
 }
 
 const workLoop = deadline => {
@@ -77,7 +98,9 @@ const workLoop = deadline => {
   // 如果有更高优先级的任务，下面任务会被打断(故需要在 performTask 中的 workLoop() 后重新注册任务)
   while (subTask && deadline.timeRemaining() > 1) {
     subTask = executeTask(subTask)
-    console.log('executeTask return', subTask)
+  }
+  if (pendingCommit) {
+    commitAllWork(pendingCommit)
   }
 }
 // 只执行调度任务，不负责执行任务
