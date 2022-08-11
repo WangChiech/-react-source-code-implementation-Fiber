@@ -1,4 +1,5 @@
 import { createTaskQueue, arrified, createStateNode, getTag } from '../Misc'
+import { updateNodeElement } from '../DOM'
 
 const taskQueue = createTaskQueue()
 let subTask = null
@@ -14,8 +15,23 @@ const commitAllWork = fiber => {
       if (item.tag === 'host_component') {
         parentFiber.stateNode.appendChild(item.stateNode)
       }
+    } else if (item.effectTag === 'update') {
+      if (item.type === item.alternate.type) {
+        // 节点类型相同
+        updateNodeElement(item.stateNode, item, item.alternate)
+      } else {
+        // 节点类型不同
+        item.parent.stateNode.replaceChild(
+          item.stateNode,
+          item.alternate.stateNode
+        )
+      }
+    } else if(item.effectTag === 'delete') {
+      item.parent.stateNode.removeChild(item.stateNode)
     }
   })
+  // 备份旧的 fiber 节点对象
+  fiber.stateNode.__rootFiberContainer = fiber
 }
 
 const getFirstTask =() => {
@@ -27,7 +43,8 @@ const getFirstTask =() => {
     stateNode: task.dom, // 节点 DOM 对象
     tag: 'host_root', // 节点标记 (hostRoot | hostComponent | classComponent | functionComponent)
     effects: [], // 存储需要更改的 fiber 对象
-    child: null // 子级 fiber
+    child: null, // 子级 fiber
+    alternate: task.dom.__rootFiberContainer
   }
 }
 
@@ -40,23 +57,60 @@ const reconcileChildren = (fiber, children) => {
   let element = null
   let newFiber = null
   let prevFiber = null
+  let alternate = null
 
-  while (index < numberOfElements) {
+  if (fiber.alternate && fiber.alternate.child) {
+    // fiber 子节点的备份节点
+    alternate = fiber.alternate.child
+  }
+
+  while (index < numberOfElements || alternate) {
     element = arrifiedChildren[index]
-    newFiber = {
-      type: element.type,
-      props: element.props,
-      tag: getTag(element), // host_component 普通节点 || 根节点 host_root
-      effects: [],
-      effectTag: "placement",
-      parent: fiber
+
+    if (!element && alternate) {
+      alternate.effectTag = 'delete'
+      fiber.effects.push(alternate)
+    } else if (element && !alternate) {
+      // 初始渲染
+      newFiber = {
+        type: element.type,
+        props: element.props,
+        tag: getTag(element), // host_component 普通节点 || 根节点 host_root
+        effects: [],
+        effectTag: "placement",
+        parent: fiber
+      }
+      newFiber.stateNode = createStateNode(newFiber)
+    } else if (element && alternate) {
+      // 更新操作
+      newFiber = {
+        type: element.type,
+        props: element.props,
+        tag: getTag(element), // host_component 普通节点 || 根节点 host_root
+        effects: [],
+        effectTag: 'update',
+        parent: fiber,
+        alternate
+      }
+      if (element.type === alternate.type) {
+        // 类型相同
+        newFiber.stateNode = alternate.stateNode
+      } else {
+        // 类型不同
+        newFiber.stateNode = createStateNode(newFiber)
+      }
     }
-    newFiber.stateNode = createStateNode(newFiber)
 
     if (index === 0) {
       fiber.child = newFiber
-    } else {
+    } else if (element) {
       prevFiber.sibling = newFiber
+    }
+
+    if (alternate && alternate.sibling) {
+      alternate = alternate.sibling
+    } else {
+      alternate = null
     }
     prevFiber = newFiber
     index++

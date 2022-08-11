@@ -11,16 +11,32 @@ const jsx = (
 
 // render(jsx, root)
 
+// setTimeout(() => {
+//   const jsx = (
+//     <div>
+//       <div>react</div>
+//     </div>
+//   )
+//   render(jsx, root)
+// }, 2000)
+
 class Greating extends Component {
   constructor (props) {
     super(props)
+    this.state = {
+      name: 'state测试'
+    }
   }
   render () {
-    return <div>类组件测试 { this.props.title }</div>
+    return <div>
+      类组件测试
+      <div>{ this.state.name }-{ this.props.title }</div>
+      <button onClick={() => this.setState({ name: 'state已更改' })}>button</button>
+    </div>
   }
 }
 
-render(<Greating title="props-title"/>, root)
+render(<Greating title="props测试"/>, root)
 
 
 function Fn (props) {
